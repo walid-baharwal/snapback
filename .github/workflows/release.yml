@@ -29,11 +29,14 @@ jobs:
           - macos-latest
 
     steps:
+      # v5 of these actions uses the Node 24 runtime; v4 is on the
+      # deprecated Node 20 runtime which GitHub started forcing to Node 24
+      # on June 16, 2026.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -45,17 +48,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Build the renderer/main/preload, then run electron-builder with
-      # --publish always so artifacts upload to the GitHub Release matching
-      # the tag that triggered this run. On macOS this produces dmgs for
-      # both x64 and arm64. On Windows it produces an NSIS .exe. On Linux
-      # it produces AppImage + deb.
+      # Compile main + preload + renderer into out/. electron-builder
+      # reads `files: out/**/*` from electron-builder.yml, so the package
+      # step would fail with "no such directory" if we skip this.
+      - name: Build app
+        run: npm run build
+
+      # Package the installers and upload them to the GitHub Release that
+      # matches the tag triggering this run. On macOS this produces dmgs
+      # for both x64 and arm64; on Windows an NSIS .exe; on Linux AppImage
+      # + deb.
       #
       # NOTE: If x64 mac builds prove flaky on arm64 runners (because
       # better-sqlite3 needs an x64 prebuilt binary), drop x64 from
       # electron-builder.yml `mac.target.arch` and rely on Rosetta on
       # older Intel Macs.
-      - name: Build and publish
+      - name: Package and publish installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx --no-install electron-builder --publish always
