@@ -1,0 +1,49 @@
+appId: io.snapback.app
+productName: Snapback
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+asar: true
+asarUnpack:
+  - node_modules/better-sqlite3/**/*
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: ${productName}-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  category: public.app-category.productivity
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Utility
+  maintainer: hello@snapback.app
+  artifactName: ${productName}-${version}.${ext}
+
+# Fix the SUID sandbox permission for system-wide installs
+deb:
+  # electron-builder will include a postinst script to chmod +s chrome-sandbox
+  afterInstall: build/after-install.sh
+
+# For AppImage, sandboxing is handled differently
+appImage:
+  publish: null
+
+publish: null
