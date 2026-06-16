@@ -42,8 +42,10 @@ deb:
   # electron-builder will include a postinst script to chmod +s chrome-sandbox
   afterInstall: build/after-install.sh
 
-# For AppImage, sandboxing is handled differently
-appImage:
-  publish: null
-
-publish: null
+# Publish every produced artifact (exe, dmg, AppImage, deb) to GitHub
+# Releases. The release matching the pushed tag is created automatically
+# by `electron-builder --publish always` in CI, using GITHUB_TOKEN.
+publish:
+  provider: github
+  owner: walid-baharwal
+  repo: snapback

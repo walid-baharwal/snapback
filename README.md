@@ -29,36 +29,69 @@ stored blobs is available.
   Uses XDG autostart on Linux, the Electron login items API on macOS and
   Windows.
 
-## Install
+## Download and install
 
-### From source (any OS)
+End users do not need Node.js, Visual Studio, Xcode or any compilers. Just
+grab the installer for your OS from the
+[Releases page](https://github.com/walid-baharwal/snapback/releases/latest)
+and double-click it like any other app.
 
-You need Node.js 18 or newer and a working C/C++ toolchain that
-`better-sqlite3` and `@electron/rebuild` can use:
+### Windows
 
-* Linux: `build-essential`, `python3`
-* macOS: Xcode command-line tools (`xcode-select --install`)
-* Windows: the Visual Studio Build Tools workload, or
-  `npm install --global windows-build-tools` on older setups
+1. Download `Snapback-<version>-setup.exe` from the latest release.
+2. Double-click it. Windows SmartScreen will show "Windows protected your
+   PC" because the installer is not yet code-signed. Click **More info**,
+   then **Run anyway**.
+3. Follow the installer. By default Snapback installs per-user, creates a
+   desktop shortcut, and adds itself to the Start menu.
+4. Launch Snapback from the Start menu. The first run shows the setup
+   wizard; after that it lives in the system tray near the clock.
+
+To uninstall: Settings > Apps > Snapback > Uninstall.
+
+### macOS
+
+1. Download the matching dmg from the latest release:
+   * `Snapback-<version>-arm64.dmg` for Apple Silicon Macs (M1/M2/M3/M4).
+   * `Snapback-<version>-x64.dmg` for Intel Macs.
+2. Open the dmg and drag **Snapback** into the **Applications** folder.
+3. The first time you launch it, macOS Gatekeeper will say *"Snapback can't
+   be opened because Apple cannot check it for malicious software"*. This
+   is expected for unsigned apps. To bypass:
+   * **Easy way:** Right-click (or Control-click) Snapback in Applications,
+     choose **Open**, then click **Open** in the dialog. macOS remembers
+     this choice; future launches just work.
+   * **One-shot fix from Terminal:**
+     ```bash
+     xattr -dr com.apple.quarantine /Applications/Snapback.app
+     ```
+4. Snapback lives in the menu bar after launch.
+
+To uninstall: drag Snapback from `/Applications` to the Trash.
+
+### Linux
+
+Two formats are published. Pick whichever fits your distro.
+
+**AppImage (any distro, no install needed):**
 
 ```bash
-git clone https://github.com/<your-user>/snapback.git
-cd snapback
-npm install
-npm run package      # builds and packages for the current OS
+chmod +x Snapback-<version>.AppImage
+./Snapback-<version>.AppImage
 ```
 
-The resulting installers and unpacked builds are written to `release/`.
-On Linux you can run the unpacked binary directly:
+**Debian / Ubuntu / Mint (.deb):**
 
 ```bash
-./release/linux-unpacked/snapback
+sudo dpkg -i Snapback-<version>.deb
+sudo apt-get install -f   # only if dpkg reports missing deps
 ```
 
-### Linux specifics
+The `.deb` installs into `/opt/Snapback/` and adds a desktop entry, so
+Snapback appears in your application launcher.
 
-The watcher uses `inotify`. On systems with many files you may hit
-`fs.inotify.max_user_watches`. Bump it once:
+If the watcher logs `ENOSPC: System limit for number of file watchers
+reached`, bump the inotify limits once:
 
 ```bash
 echo 'fs.inotify.max_user_watches=524288' | sudo tee -a /etc/sysctl.conf
@@ -66,31 +99,83 @@ echo 'fs.inotify.max_queued_events=131072' | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 ```
 
-If the unpacked binary aborts complaining about the SUID sandbox helper,
-either run it once with `--no-sandbox` or fix the helper permissions:
+### About the unsigned-app warnings
+
+The installers are not yet signed with an Apple Developer ID or Windows
+code-signing certificate, so both OSes will warn you on first launch. The
+app itself is the same code you can read in this repo. Code signing is on
+the roadmap; until then the workarounds above are the way in.
+
+## Build from source (developers only)
+
+You only need this if you want to compile your own installer, contribute
+code, or run with hot reload. Regular users should use the prebuilt
+installers above.
+
+You need Node.js 18 or newer and a C/C++ toolchain so `better-sqlite3` can
+build its native binding:
+
+* Linux: `sudo apt install build-essential python3` (or your distro's
+  equivalent).
+* macOS: `xcode-select --install`.
+* Windows: install the *Desktop development with C++* workload from
+  [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/),
+  plus Python 3. `npm` will pick them up automatically.
+
+```bash
+git clone https://github.com/walid-baharwal/snapback.git
+cd snapback
+npm install
+npm run dev              # Electron with HMR on the renderer
+npm run typecheck        # both tsconfig projects
+npm run package          # build an installer for the current OS only
+```
+
+The packaged installer lands in `release/`. On Linux you can also run the
+unpacked binary directly:
+
+```bash
+./release/linux-unpacked/snapback
+```
+
+If it aborts complaining about the SUID sandbox helper, either run it
+with `--no-sandbox` or fix the helper permissions:
 
 ```bash
 sudo chown root:root release/linux-unpacked/chrome-sandbox
 sudo chmod 4755 release/linux-unpacked/chrome-sandbox
 ```
 
-## Development
+Per-OS packaging targets are also available, but each one only runs on
+its own OS (native modules can't be cross-compiled):
 
 ```bash
-npm install
-npm run dev          # starts Electron with HMR on the renderer
-npm run build        # builds main + preload + renderer into out/
-npm run typecheck    # tsc --noEmit for the node and web projects
-```
-
-Useful packaging targets:
-
-```bash
-npm run package          # current OS
 npm run package:linux    # AppImage + deb
-npm run package:win      # NSIS installer
+npm run package:win      # NSIS .exe
 npm run package:mac      # dmg (x64 + arm64)
 ```
+
+## Releasing
+
+A push of a `v*` tag triggers
+[`.github/workflows/release.yml`](.github/workflows/release.yml), which
+builds Snapback on `ubuntu-latest`, `windows-latest` and `macos-latest`
+in parallel and uploads every artifact (`.exe`, two `.dmg` files,
+AppImage, `.deb`, plus the `latest*.yml` update metadata) to a GitHub
+Release matching the tag.
+
+To cut a release:
+
+```bash
+# Bump the version in package.json first, commit it, then:
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Watch the run under the
+[Actions tab](https://github.com/walid-baharwal/snapback/actions). When
+all three jobs are green, the release with the installers is live at
+`https://github.com/walid-baharwal/snapback/releases/tag/v0.1.0`.
 
 ## Project structure
 

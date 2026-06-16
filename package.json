@@ -2,7 +2,14 @@
   "name": "snapback",
   "version": "0.1.0",
   "description": "Snapback - a cross-platform file time machine with scoped rules and automatic retention.",
-  "homepage": "https://github.com/snapback-app/snapback",
+  "homepage": "https://github.com/walid-baharwal/snapback#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/walid-baharwal/snapback.git"
+  },
+  "bugs": {
+    "url": "https://github.com/walid-baharwal/snapback/issues"
+  },
   "main": "out/main/index.js",
   "author": {
     "name": "Snapback",

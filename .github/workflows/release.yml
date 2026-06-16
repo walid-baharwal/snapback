@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  # Cut a release by pushing a version tag (e.g. v0.1.0).
+  push:
+    tags:
+      - 'v*'
+  # Allow manual runs from the Actions tab for testing.
+  workflow_dispatch:
+
+# `electron-builder --publish always` uses GITHUB_TOKEN to create the
+# GitHub Release and upload installer artifacts, so we need write access
+# to the repo contents.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Don't cancel other OS builds if one fails; release artifacts on the
+      # OSes that did succeed are still useful.
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # `npm ci` triggers the package.json `postinstall` script which runs
+      # `electron-builder install-app-deps`. That rebuilds the native
+      # better-sqlite3 module against Electron's ABI on this exact runner,
+      # producing a binary the packaged installer can ship.
+      - name: Install dependencies
+        run: npm ci
+
+      # Build the renderer/main/preload, then run electron-builder with
+      # --publish always so artifacts upload to the GitHub Release matching
+      # the tag that triggered this run. On macOS this produces dmgs for
+      # both x64 and arm64. On Windows it produces an NSIS .exe. On Linux
+      # it produces AppImage + deb.
+      #
+      # NOTE: If x64 mac builds prove flaky on arm64 runners (because
+      # better-sqlite3 needs an x64 prebuilt binary), drop x64 from
+      # electron-builder.yml `mac.target.arch` and rely on Rosetta on
+      # older Intel Macs.
+      - name: Build and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx --no-install electron-builder --publish always
